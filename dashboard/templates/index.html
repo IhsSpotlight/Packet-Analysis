@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNIDS // SENTINEL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="boot-screen">
+  <pre id="boot-text"></pre>
+</div>
+
+<div id="app" class="hidden">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">&gt;_</span>
+      <span class="brand-name">SENTINEL</span>
+      <span class="brand-sub">// session hijack &amp; scan detector</span>
+    </div>
+    <div class="status-cluster">
+      <div class="status-item">
+        <span class="dot" id="live-dot"></span>
+        <span id="mode-label">{{ mode|upper }}</span>
+      </div>
+      <div class="status-item">IFACE <span id="iface-label">{{ iface }}</span></div>
+      <div class="status-item">SESSIONS <span id="session-count">0</span></div>
+      <div class="status-item">UPTIME <span id="uptime">00:00:00</span></div>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <section class="panel feed-panel">
+      <div class="panel-head">
+        <span>LIVE ALERT FEED</span>
+        <span class="panel-head-meta" id="feed-count">0 events</span>
+      </div>
+      <div class="feed-scroll" id="feed">
+        <div class="feed-empty" id="feed-empty">
+          &gt; no anomalies observed. monitoring&hellip;
+        </div>
+      </div>
+    </section>
+
+    <aside class="side-col">
+
+      <section class="panel stats-panel">
+        <div class="panel-head"><span>SEVERITY</span></div>
+        <div class="bars" id="severity-bars">
+          <div class="bar-row" data-sev="critical">
+            <span class="bar-label">CRITICAL</span>
+            <div class="bar-track"><div class="bar-fill sev-critical" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="high">
+            <span class="bar-label">HIGH</span>
+            <div class="bar-track"><div class="bar-fill sev-high" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="medium">
+            <span class="bar-label">MEDIUM</span>
+            <div class="bar-track"><div class="bar-fill sev-medium" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="low">
+            <span class="bar-label">LOW</span>
+            <div class="bar-track"><div class="bar-fill sev-low" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stats-panel">
+        <div class="panel-head"><span>ALERT TYPES</span></div>
+        <div class="type-list" id="type-list">
+          <div class="type-empty">&mdash;</div>
+        </div>
+      </section>
+
+      <section class="panel legend-panel">
+        <div class="panel-head"><span>MODULES ARMED</span></div>
+        <ul class="legend-list">
+          <li><span class="tick">&#10003;</span> Port scan detection</li>
+          <li><span class="tick">&#10003;</span> SYN flood / DoS detection</li>
+          <li><span class="tick">&#10003;</span> Open port exposure</li>
+          <li><span class="tick">&#10003;</span> TTL / sequence anomaly</li>
+          <li><span class="tick">&#10003;</span> MAC swap detection</li>
+          <li><span class="tick">&#10003;</span> RST / dup-ACK storm</li>
+        </ul>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <footer class="footbar">
+    <span>RNIDS SENTINEL v0.1</span>
+    <span class="sep">&middot;</span>
+    <span>rule-based engine</span>
+    <span class="sep">&middot;</span>
+    <span id="clock">--:--:--</span>
+  </footer>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  window.__SENTINEL_MODE__ = {{ mode|tojson }};
+  window.__SENTINEL_IFACE__ = {{ iface|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# SENTINEL — session hijack & network scan detector
+# Install with: pip install -r requirements.txt
+# (On Linux, use --break-system-packages if your system pip is externally managed:
+#    pip install -r requirements.txt --break-system-packages)
+#
+# Live capture (main.py --iface ...) also needs root/admin privileges —
+# this file only handles the Python package side.
+
+flask>=3.1,<4.0
+flask-socketio>=5.6,<6.0
+python-socketio>=5.16,<6.0
+scapy>=2.7,<3.0
+
+# Used internally by Flask-SocketIO's threading async mode; also lets you
+# switch to async_mode="eventlet" in main.py for better performance under
+# heavy live traffic.
+eventlet>=0.41,<1.0
