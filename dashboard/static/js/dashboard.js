@@ -41,13 +41,23 @@ function fmtTime(ts) {
   return d.toTimeString().split(" ")[0];
 }
 
+// ---------------- alert storage + detail card ----------------
+
+let _alertSeq = 0;
+const alertsById = {};      // id -> full alert object, so a click can re-show it
+const ipInfoCache = {};     // ip -> fetched info, avoids re-fetching on repeat clicks
+
 function renderAlert(alert) {
   const feed = document.getElementById("feed");
   const empty = document.getElementById("feed-empty");
   if (empty) empty.remove();
 
+  const id = _alertSeq++;
+  alertsById[id] = alert;
+
   const row = document.createElement("div");
   row.className = "alert-row " + severityClass(alert.severity);
+  row.dataset.alertId = id;
   row.innerHTML = `
     <span class="alert-time">${fmtTime(alert.timestamp)}</span>
     <span class="alert-sev">${alert.severity.toUpperCase()}</span>
@@ -57,12 +67,91 @@ function renderAlert(alert) {
       ${alert.message}
     </span>
   `;
+  row.addEventListener("click", () => openDetailCard(alert));
   feed.prepend(row);
 
   // cap DOM growth — keep the most recent 200 rows rendered
   while (feed.children.length > 200) {
     feed.removeChild(feed.lastChild);
   }
+}
+
+function kvRow(key, value) {
+  return `<div class="kv-row"><span class="k">${key}</span><span class="v">${value}</span></div>`;
+}
+
+function renderRawDetails(details) {
+  const el = document.getElementById("detail-raw");
+  const entries = Object.entries(details || {});
+  if (entries.length === 0) {
+    el.innerHTML = "&mdash;";
+    return;
+  }
+  el.innerHTML = entries
+    .map(([k, v]) => kvRow(k, Array.isArray(v) ? v.join(", ") : JSON.stringify(v).replace(/^"|"$/g, "")))
+    .join("");
+}
+
+function renderIpInfo(info) {
+  const el = document.getElementById("detail-ipinfo");
+
+  if (info.is_private) {
+    el.innerHTML = kvRow("scope", "private / local network")
+      + `<span class="ip-tag private">LAN</span>`;
+    return;
+  }
+
+  const rows = [];
+  rows.push(kvRow("hostname", info.hostname || "no PTR record"));
+  rows.push(kvRow("organization", info.org || "unknown"));
+  rows.push(kvRow("asn", info.asn || "unknown"));
+  rows.push(kvRow("isp", info.isp || "unknown"));
+  const location = [info.city, info.region, info.country].filter(Boolean).join(", ");
+  rows.push(kvRow("location", location || "unknown"));
+
+  el.innerHTML = rows.join("") + (info.cached ? `<span class="ip-tag">cached</span>` : "");
+}
+
+function fetchIpInfo(ip) {
+  const el = document.getElementById("detail-ipinfo");
+
+  if (ipInfoCache[ip]) {
+    renderIpInfo(ipInfoCache[ip]);
+    return;
+  }
+
+  el.innerHTML = '<span class="detail-loading">looking up&hellip;</span>';
+
+  fetch(`/api/ip-info/${encodeURIComponent(ip)}`)
+    .then((r) => r.json())
+    .then((info) => {
+      ipInfoCache[ip] = info;
+      renderIpInfo(info);
+    })
+    .catch(() => {
+      el.innerHTML = '<span class="detail-loading">lookup failed &mdash; offline or rate-limited</span>';
+    });
+}
+
+function openDetailCard(alert) {
+  document.getElementById("detail-type").textContent = alert.alert_type;
+
+  const sevEl = document.getElementById("detail-sev");
+  sevEl.textContent = alert.severity.toUpperCase();
+  sevEl.className = "detail-sev " + severityClass(alert.severity);
+
+  document.getElementById("detail-time").textContent = fmtTime(alert.timestamp);
+  document.getElementById("detail-ip").textContent = alert.src_ip;
+  document.getElementById("detail-message").textContent = alert.message;
+
+  renderRawDetails(alert.details);
+  fetchIpInfo(alert.src_ip);
+
+  document.getElementById("detail-overlay").classList.remove("hidden");
+}
+
+function closeDetailCard() {
+  document.getElementById("detail-overlay").classList.add("hidden");
 }
 
 function renderStats(stats) {
@@ -146,6 +235,14 @@ function connectSocket() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("detail-close").addEventListener("click", closeDetailCard);
+  document.getElementById("detail-overlay").addEventListener("click", (e) => {
+    if (e.target.id === "detail-overlay") closeDetailCard();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDetailCard();
+  });
+
   typeBootSequence(() => {
     document.getElementById("boot-screen").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");

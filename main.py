@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "capture"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "detectors"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "reporting"))
 
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_socketio import SocketIO
 
 from session_table import SessionTable, PacketRecord     # noqa: E402
@@ -51,6 +51,7 @@ from scan_detector import ScanDetector, OpenPortMonitor    # noqa: E402
 from hijack_detector import HijackDetector                 # noqa: E402
 from alert_manager import AlertManager                     # noqa: E402
 from alert import Alert                                    # noqa: E402
+from ip_lookup import get_ip_info                           # noqa: E402
 
 
 OPEN_PORT_WHITELIST = {22, 80, 443, 5000}   # adjust to what SHOULD be listening on your device
@@ -82,6 +83,10 @@ def build_app(mode: str, iface_label: str):
     @app.route("/")
     def index():
         return render_template("index.html", mode=mode, iface=iface_label)
+
+    @app.route("/api/ip-info/<ip>")
+    def ip_info(ip):
+        return jsonify(get_ip_info(ip))
 
     @socketio.on("connect")
     def handle_connect():
