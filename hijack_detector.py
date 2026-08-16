@@ -83,7 +83,8 @@ class HijackDetector:
 
         self._lock = threading.Lock()
 
-        # per-session running state, keyed by the session's 5-tuple key
+        # per-session running state, keyed by (session_key, generation) —
+        # see _gkey() below for why generation matters
         self._last_seq: dict[tuple, int] = {}
         self._rst_times: dict[tuple, deque] = {}
         self._last_ack: dict[tuple, tuple[int, deque]] = {}  # ack_val -> deque of timestamps it repeated at
@@ -136,6 +137,16 @@ class HijackDetector:
         self._last_fired[(key, alert_type)] = now
         return True
 
+    @staticmethod
+    def _gkey(session, key):
+        """Generation-scoped key: when session_table.py detects a session
+        key got reused by a genuinely new connection (bare SYN after a
+        completed handshake), it bumps session.generation. Folding that
+        into the dict key here means our internal seq/RST/dup-ACK
+        trackers automatically start fresh for the new connection instead
+        of comparing it against the old, unrelated connection's state."""
+        return (key, session.generation)
+
     # ---------------- checks ----------------
 
     def _check_ttl(self, session, key, rec):
@@ -181,9 +192,10 @@ class HijackDetector:
         if rec.seq is None:
             return None
 
+        gkey = self._gkey(session, key)
         with self._lock:
-            last_seq = self._last_seq.get(key)
-            self._last_seq[key] = rec.seq
+            last_seq = self._last_seq.get(gkey)
+            self._last_seq[gkey] = rec.seq
 
         if last_seq is None:
             return None  # first packet, nothing to compare against yet
@@ -216,9 +228,10 @@ class HijackDetector:
         if "R" not in rec.flags:
             return None
 
+        gkey = self._gkey(session, key)
         now = rec.timestamp
         with self._lock:
-            dq = self._rst_times.setdefault(key, deque())
+            dq = self._rst_times.setdefault(gkey, deque())
             dq.append(now)
             while dq and now - dq[0] > self.rst_storm_window:
                 dq.popleft()
@@ -243,12 +256,13 @@ class HijackDetector:
         if rec.flags != "A" or rec.ack is None:
             return None
 
+        gkey = self._gkey(session, key)
         now = rec.timestamp
         with self._lock:
-            prev = self._last_ack.get(key)
+            prev = self._last_ack.get(gkey)
             if prev is None or prev[0] != rec.ack:
                 # new ACK value — reset the repeat tracker
-                self._last_ack[key] = (rec.ack, deque([now]))
+                self._last_ack[gkey] = (rec.ack, deque([now]))
                 return None
 
             ack_val, dq = prev

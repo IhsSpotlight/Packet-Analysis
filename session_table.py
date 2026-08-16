@@ -54,7 +54,19 @@ class Session:
     rst_count: int = 0
     dup_ack_count: int = 0
 
+    # connection-reuse tracking: ephemeral ports get recycled quickly under
+    # load (e.g. many short-lived HTTPS connections to the same CDN edge),
+    # so the same 5-tuple key can legitimately represent a brand new TCP
+    # connection later on. has_seen_ack flips True once the handshake has
+    # visibly progressed; a bare SYN arriving after that can only mean a
+    # new connection just reused this tuple — never a mid-stream SYN.
+    has_seen_ack: bool = False
+    generation: int = 0
+
     def add_packet(self, rec: PacketRecord):
+        if rec.flags == "S" and self.has_seen_ack:
+            self._reset_for_new_connection()
+
         self.packets.append(rec)
         self.last_seen = rec.timestamp
 
@@ -62,6 +74,8 @@ class Session:
             self.baseline_ttl = rec.ttl
         if self.baseline_mac is None and rec.src_mac is not None:
             self.baseline_mac = rec.src_mac
+        if "A" in rec.flags:
+            self.has_seen_ack = True
 
         if "S" in rec.flags and "A" not in rec.flags:
             self.syn_count += 1
@@ -69,6 +83,26 @@ class Session:
             self.synack_count += 1
         if "R" in rec.flags:
             self.rst_count += 1
+
+    def _reset_for_new_connection(self):
+        """Called when a bare SYN reuses a session key whose previous
+        connection already completed a handshake — i.e. this key now
+        belongs to a different, unrelated TCP connection. Wipes the
+        baselines/history so detectors don't compare the new connection
+        against the old one's state, and bumps `generation` so external
+        per-session tracking (hijack_detector's seq/RST/ACK dicts) knows
+        to start fresh too."""
+        self.packets.clear()
+        self.baseline_ttl = None
+        self.baseline_mac = None
+        self.expected_next_seq = None
+        self.has_seen_ack = False
+        self.syn_count = 0
+        self.synack_count = 0
+        self.rst_count = 0
+        self.dup_ack_count = 0
+        self.generation += 1
+        self.created_at = time.time()
 
 
 class SessionTable:

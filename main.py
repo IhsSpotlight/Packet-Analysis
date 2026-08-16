@@ -28,7 +28,10 @@ Two run modes:
                     logic end-to-end before touching real hardware.
 
 Usage:
+Linux
     sudo python3 main.py --iface eth0
+Windows (requires WinPcap/Npcap)    
+    python main.py --iface "Realtek RTL8821CE 802.11ac PCIe Adapter"
     python3 main.py --demo
 """
 
