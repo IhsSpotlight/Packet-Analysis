@@ -81,7 +81,7 @@ def make_packet_handler(table: SessionTable, on_packet=None):
 
         key = table.make_key(src_ip, sport, dst_ip, dport, proto)
         session = table.get_or_create(key)
-        session.add_packet(rec)
+        session.add_packet(rec, key)
 
         # scan detection needs a source-ip -> port history independent of
         # full session tuples (a scanner touches many different dports)

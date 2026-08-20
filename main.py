@@ -28,10 +28,7 @@ Two run modes:
                     logic end-to-end before touching real hardware.
 
 Usage:
-Linux
     sudo python3 main.py --iface eth0
-Windows (requires WinPcap/Npcap)    
-    python main.py --iface "Realtek RTL8821CE 802.11ac PCIe Adapter"
     python3 main.py --demo
 """
 
@@ -131,7 +128,7 @@ def _feed(table, on_packet, src_ip, dst_ip, dport, flags, **kwargs):
     key = table.make_key(src_ip, random.randint(40000, 60000), dst_ip, dport, "TCP")
     session = table.get_or_create(key)
     rec = _make_rec(flags, **kwargs)
-    session.add_packet(rec)
+    session.add_packet(rec, key)
     table.record_port_touch(src_ip, dport, rec.timestamp)
     on_packet(session, key, rec)
 
