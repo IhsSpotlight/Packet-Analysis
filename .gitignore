@@ -2,3 +2,30 @@
 /logs
 /venv
 /__pycache__
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local database/runtime artifacts
+*.db
+*.db-journal
+*.sqlite3
+*.sqlite
+*.log
+
+# Generated app data
+forwarder_buffer.json
+session_data/
+output/

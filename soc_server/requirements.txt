@@ -1,0 +1,15 @@
+# SENTINEL SOC server — central aggregation, RBAC dashboard, behavioral +
+# ML anomaly detection, alert correlation.
+# Install with: pip install -r requirements.txt
+# (add --break-system-packages on Linux if pip complains about an
+# externally-managed environment)
+#
+# This is a SEPARATE service from the sensor (../requirements.txt) — it
+# has different dependencies (scikit-learn for ML anomaly detection) and
+# runs on a different machine in a real multi-network deployment.
+
+flask>=3.1,<4.0
+scikit-learn>=1.4,<2.0
+
+# sqlite3 (db.py) and hashlib/secrets (auth.py) are stdlib — no package needed.
+# werkzeug (password hashing, session cookies) comes in as a Flask dependency.

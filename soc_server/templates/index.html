@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL SOC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-mark">&gt;_</span>
+      <span class="brand-name">SENTINEL SOC</span>
+    </div>
+    <p class="login-sub">central aggregation dashboard</p>
+    <form id="login-form">
+      <input type="text" id="login-username" placeholder="username" autocomplete="username" required>
+      <input type="password" id="login-password" placeholder="password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+      <div id="login-error" class="login-error hidden"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">&gt;_</span>
+      <span class="brand-name">SENTINEL SOC</span>
+      <span class="brand-sub">// central dashboard</span>
+    </div>
+    <div class="status-cluster">
+      <div class="status-item">USER <span id="user-label">—</span></div>
+      <div class="status-item">ROLE <span id="role-label">—</span></div>
+      <div class="status-item" id="network-switcher-wrap">
+        <select id="network-switcher"><option value="">ALL NETWORKS</option></select>
+      </div>
+      <button id="logout-btn" class="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <section class="panel feed-panel">
+      <div class="panel-head">
+        <span>ALERT FEED</span>
+        <span class="panel-head-meta" id="feed-count">0 events</span>
+      </div>
+      <div class="feed-scroll" id="feed">
+        <div class="feed-empty" id="feed-empty">&gt; no alerts for this scope yet.</div>
+      </div>
+    </section>
+
+    <section class="panel feed-panel">
+      <div class="panel-head"><span>INCIDENTS</span><span class="panel-head-meta" id="incidents-count">0</span></div>
+      <div class="feed-scroll" id="incidents-feed">
+        <div class="feed-empty">&gt; no correlated incidents yet.</div>
+      </div>
+    </section>
+
+    <aside class="side-col">
+      <section class="panel stats-panel">
+        <div class="panel-head"><span>SEVERITY</span></div>
+        <div class="bars" id="severity-bars">
+          <div class="bar-row" data-sev="critical">
+            <span class="bar-label">CRITICAL</span>
+            <div class="bar-track"><div class="bar-fill sev-critical" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="high">
+            <span class="bar-label">HIGH</span>
+            <div class="bar-track"><div class="bar-fill sev-high" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="medium">
+            <span class="bar-label">MEDIUM</span>
+            <div class="bar-track"><div class="bar-fill sev-medium" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+          <div class="bar-row" data-sev="low">
+            <span class="bar-label">LOW</span>
+            <div class="bar-track"><div class="bar-fill sev-low" style="width:0%"></div></div>
+            <span class="bar-value">0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel stats-panel">
+        <div class="panel-head"><span>ALERT TYPES</span></div>
+        <div class="type-list" id="type-list"><div class="type-empty">&mdash;</div></div>
+      </section>
+
+      <section class="panel stats-panel" id="behavioral-panel">
+        <div class="panel-head"><span>BEHAVIORAL BASELINE</span></div>
+        <div class="detail-raw" id="behavioral-content">&mdash;</div>
+      </section>
+
+      <section class="panel stats-panel" id="ml-panel">
+        <div class="panel-head"><span>ML FLOW ANOMALIES</span></div>
+        <div class="detail-raw" id="ml-content">&mdash;</div>
+      </section>
+
+      <section class="panel stats-panel" id="networks-panel">
+        <div class="panel-head"><span>NETWORKS</span></div>
+        <div class="type-list" id="networks-list"><div class="type-empty">&mdash;</div></div>
+      </section>
+    </aside>
+
+  </main>
+
+  <footer class="footbar">
+    <span>SENTINEL SOC v0.1</span>
+    <span class="sep">&middot;</span>
+    <span>role-scoped aggregation</span>
+    <span class="sep">&middot;</span>
+    <span id="clock">--:--:--</span>
+  </footer>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
