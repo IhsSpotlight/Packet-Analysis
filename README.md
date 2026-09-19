@@ -1,5 +1,7 @@
 # SENTINEL Enterprise IDS
 
+ **Please Read the usermanual **SENTINEL-Enterprise-User-Manual.docx** & **PROJECT_STRUCTURE.md** to get better understand and use:**
+
 > **Research-grade, Real-time Hybrid Network Intrusion Detection System**
 
 SENTINEL Enterprise is a lightweight, distributed Hybrid Network Intrusion Detection System (IDS) designed for multi-network enterprise environments. It combines rule-based signature detection, statistical behavioral baselining, and unsupervised machine learning anomaly detection into a unified platform.
