@@ -63,13 +63,24 @@ class PacketRecord:
 @dataclass
 class Session:
     key: tuple                       # canonical flow key (see module docstring)
+    network_id: str | None = None    # which sensor/department this flow belongs to
     created_at: float = field(default_factory=time.time)
     last_seen: float = field(default_factory=time.time)
     packets: deque = field(default_factory=lambda: deque(maxlen=MAX_HISTORY))
 
-    # rolling baselines used by hijack_detector
-    baseline_ttl: int | None = None
-    baseline_mac: str | None = None
+    # rolling baselines used by hijack_detector — tracked PER DIRECTION.
+    # Forward (initiator->peer) and reverse (peer->initiator) packets are
+    # captured at the same point on the wire but legitimately show
+    # different MACs (your NIC vs. your gateway's MAC, since the gateway
+    # is the last hop before inbound frames reach you) and different TTLs
+    # (your OS's own default vs. the remote host's TTL minus hop count).
+    # A single shared baseline would flag that structural difference as a
+    # "hijack" on literally every bidirectional flow — comparing must stay
+    # within one direction to mean anything.
+    baseline_ttl: int | None = None        # forward
+    baseline_ttl_rev: int | None = None    # reverse
+    baseline_mac: str | None = None        # forward
+    baseline_mac_rev: str | None = None    # reverse
     expected_next_seq: int | None = None
 
     # counters used by scan_detector
@@ -104,6 +115,14 @@ class Session:
     has_seen_ack: bool = False
     generation: int = 0
 
+    def is_forward_packet(self, literal_key: tuple) -> bool:
+        """True if literal_key's (src_ip, sport) matches this flow's
+        initiator — i.e. this packet travels in the forward direction.
+        Detectors use this to pick the correct per-direction baseline."""
+        if self.initiator is None:
+            return True
+        return (literal_key[0], literal_key[1]) == self.initiator
+
     def add_packet(self, rec: PacketRecord, literal_key: tuple):
         """literal_key is the packet's own (src_ip, sport, dst_ip, dport, proto)
         exactly as captured — used to determine forward/reverse direction
@@ -120,10 +139,16 @@ class Session:
         self.packets.append(rec)
         self.last_seen = rec.timestamp
 
-        if self.baseline_ttl is None and rec.ttl is not None:
-            self.baseline_ttl = rec.ttl
-        if self.baseline_mac is None and rec.src_mac is not None:
-            self.baseline_mac = rec.src_mac
+        if is_forward:
+            if self.baseline_ttl is None and rec.ttl is not None:
+                self.baseline_ttl = rec.ttl
+            if self.baseline_mac is None and rec.src_mac is not None:
+                self.baseline_mac = rec.src_mac
+        else:
+            if self.baseline_ttl_rev is None and rec.ttl is not None:
+                self.baseline_ttl_rev = rec.ttl
+            if self.baseline_mac_rev is None and rec.src_mac is not None:
+                self.baseline_mac_rev = rec.src_mac
         if "A" in rec.flags:
             self.has_seen_ack = True
             self.connection_established = True
@@ -171,7 +196,9 @@ class Session:
         dicts) knows to start fresh too."""
         self.packets.clear()
         self.baseline_ttl = None
+        self.baseline_ttl_rev = None
         self.baseline_mac = None
+        self.baseline_mac_rev = None
         self.expected_next_seq = None
         self.has_seen_ack = False
         self.syn_count = 0
@@ -225,6 +252,7 @@ class Session:
         extractor / dashboard / ML pipeline would want to consume."""
         return {
             "flow_key": self.key,
+            "network_id": self.network_id,
             "initiator": self.initiator,
             "duration_seconds": self.duration_seconds(),
             "total_packets": self.total_packets(),
@@ -253,7 +281,11 @@ class Session:
 class SessionTable:
     """Thread-safe store of active Session (flow) objects."""
 
-    def __init__(self):
+    def __init__(self, network_id: str | None = None):
+        # network_id is sensor-level config (which department/network this
+        # sensor belongs to) — stamped onto every Session it creates so
+        # flow_stats() carries the same tenancy tag Alert.network_id does.
+        self.network_id = network_id
         self._sessions: dict[tuple, Session] = {}
         self._lock = threading.Lock()
 
@@ -285,7 +317,7 @@ class SessionTable:
         with self._lock:
             sess = self._sessions.get(canonical)
             if sess is None:
-                sess = Session(key=canonical)
+                sess = Session(key=canonical, network_id=self.network_id)
                 self._sessions[canonical] = sess
             return sess
 

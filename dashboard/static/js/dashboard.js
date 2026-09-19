@@ -63,12 +63,14 @@ function renderAlert(alert) {
     <span class="alert-sev">${alert.severity.toUpperCase()}</span>
     <span class="alert-msg">
       <span class="alert-type-tag">${alert.alert_type}</span>
-      <span class="alert-src">${alert.src_ip}</span><br>
+      <span class="alert-src">${alert.src_ip}</span>
+      <span class="alert-service-tag"></span><br>
       ${alert.message}
     </span>
   `;
   row.addEventListener("click", () => openDetailCard(alert));
   feed.prepend(row);
+  annotateRowWithService(row, alert);
 
   // cap DOM growth — keep the most recent 200 rows rendered
   while (feed.children.length > 200) {
@@ -102,6 +104,9 @@ function renderIpInfo(info) {
   }
 
   const rows = [];
+  if (info.service) {
+    rows.push(kvRow("service", `<span class="service-name">${info.service}</span>`));
+  }
   rows.push(kvRow("hostname", info.hostname || "no PTR record"));
   rows.push(kvRow("organization", info.org || "unknown"));
   rows.push(kvRow("asn", info.asn || "unknown"));
@@ -110,6 +115,22 @@ function renderIpInfo(info) {
   rows.push(kvRow("location", location || "unknown"));
 
   el.innerHTML = rows.join("") + (info.cached ? `<span class="ip-tag">cached</span>` : "");
+}
+
+// Pure fetch-with-cache — used by both the detail card and the inline
+// row service-tag annotation, so a repeat lookup for the same IP never
+// hits the network (or the ip-api.com rate limit) twice.
+function fetchIpInfoCached(ip) {
+  if (ipInfoCache[ip]) {
+    return Promise.resolve(ipInfoCache[ip]);
+  }
+  return fetch(`/api/ip-info/${encodeURIComponent(ip)}`)
+    .then((r) => r.json())
+    .then((info) => {
+      ipInfoCache[ip] = info;
+      return info;
+    })
+    .catch(() => null);
 }
 
 function fetchIpInfo(ip) {
@@ -122,15 +143,42 @@ function fetchIpInfo(ip) {
 
   el.innerHTML = '<span class="detail-loading">looking up&hellip;</span>';
 
-  fetch(`/api/ip-info/${encodeURIComponent(ip)}`)
-    .then((r) => r.json())
-    .then((info) => {
-      ipInfoCache[ip] = info;
+  fetchIpInfoCached(ip).then((info) => {
+    if (info) {
       renderIpInfo(info);
-    })
-    .catch(() => {
+    } else {
       el.innerHTML = '<span class="detail-loading">lookup failed &mdash; offline or rate-limited</span>';
+    }
+  });
+}
+
+// Best-effort service-name tag shown directly on the alert feed row, so
+// you don't have to click into every alert to see "oh, that's Google" —
+// tries the alert's own src_ip first, and if that's a private/LAN address
+// (the common case when YOU are the src, e.g. outbound SEQ/TTL alerts),
+// falls back to the peer IP from the flow's session_key if present.
+function annotateRowWithService(row, alert) {
+  const candidates = [alert.src_ip];
+  const sessionKey = alert.details && alert.details.session_key;
+  if (Array.isArray(sessionKey) && sessionKey.length >= 3) {
+    candidates.push(sessionKey[2]);
+  }
+
+  function tryNext(i) {
+    if (i >= candidates.length) return;
+    const ip = candidates[i];
+    if (!ip) { tryNext(i + 1); return; }
+    fetchIpInfoCached(ip).then((info) => {
+      if (!info) { tryNext(i + 1); return; }
+      if (info.service) {
+        const tagEl = row.querySelector(".alert-service-tag");
+        if (tagEl) tagEl.textContent = "· " + info.service;
+      } else if (!info.is_private) {
+        tryNext(i + 1);
+      }
     });
+  }
+  tryNext(0);
 }
 
 function openDetailCard(alert) {

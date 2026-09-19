@@ -445,3 +445,14 @@ body {
   padding: 1px 6px;
 }
 .ip-tag.private { color: var(--low); border-color: var(--low); }
+
+.alert-service-tag {
+  color: var(--medium);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.service-name {
+  color: var(--signal);
+  font-weight: 700;
+}

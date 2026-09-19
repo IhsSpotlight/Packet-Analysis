@@ -225,6 +225,32 @@ def test_reset_on_new_connection_clears_flow_stats_too():
     print("PASS: test_reset_on_new_connection_clears_flow_stats_too")
 
 
+def test_network_id_flows_into_flow_stats():
+    """SessionTable's network_id (sensor-level config) must be stamped
+    onto every Session it creates and show up in flow_stats() — this is
+    what lets a flow snapshot be attributed to the right department
+    network once shipped to a central aggregator."""
+    tbl = SessionTable(network_id="hr-net")
+    key = tbl.make_key("192.168.1.10", 51000, "10.0.0.1", 443, "TCP")
+    sess = tbl.get_or_create(key)
+    sess.add_packet(make_rec(flags="S"), key)
+
+    assert sess.network_id == "hr-net"
+    assert sess.flow_stats()["network_id"] == "hr-net"
+    print("PASS: test_network_id_flows_into_flow_stats")
+
+
+def test_network_id_defaults_to_none_when_unset():
+    tbl = SessionTable()  # no network_id given — single-sensor deployments unaffected
+    key = tbl.make_key("192.168.1.10", 51000, "10.0.0.1", 443, "TCP")
+    sess = tbl.get_or_create(key)
+    sess.add_packet(make_rec(flags="S"), key)
+
+    assert sess.network_id is None
+    assert sess.flow_stats()["network_id"] is None
+    print("PASS: test_network_id_defaults_to_none_when_unset")
+
+
 if __name__ == "__main__":
     test_basic_session_creation()
     test_port_scan_window()
@@ -238,4 +264,6 @@ if __name__ == "__main__":
     test_handshake_success_vs_failure()
     test_flow_stats_snapshot_shape()
     test_reset_on_new_connection_clears_flow_stats_too()
+    test_network_id_flows_into_flow_stats()
+    test_network_id_defaults_to_none_when_unset()
     print("\nAll session_table tests passed.")

@@ -38,7 +38,23 @@ def test_public_ip_uses_external_lookup():
     assert info["org"] == "Microsoft Azure"
     assert info["asn"] == "AS8075 Microsoft"
     assert info["cached"] is False
+    assert info["service"] == "Microsoft"
     print("PASS: test_public_ip_uses_external_lookup")
+
+
+def test_derive_service_name_matches_known_orgs():
+    assert ip_lookup.derive_service_name({"org": "Google LLC"}) == "Google"
+    assert ip_lookup.derive_service_name({"org": "Meta Platforms, Inc."}) == "Meta (Facebook)"
+    assert ip_lookup.derive_service_name({"isp": "Akamai Technologies, Inc."}) == "Akamai (CDN)"
+    assert ip_lookup.derive_service_name({"org": "Amazon.com, Inc."}) == "Amazon / AWS"
+    assert ip_lookup.derive_service_name({"hostname": "a23-1-1-1.deploy.static.akamaitechnologies.com"}) == "Akamai (CDN)"
+    print("PASS: test_derive_service_name_matches_known_orgs")
+
+
+def test_derive_service_name_returns_none_for_unknown_org():
+    assert ip_lookup.derive_service_name({"org": "Some Random Regional ISP Ltd"}) is None
+    assert ip_lookup.derive_service_name({}) is None
+    print("PASS: test_derive_service_name_returns_none_for_unknown_org")
 
 
 def test_cache_hit_skips_second_external_call():
@@ -90,4 +106,6 @@ if __name__ == "__main__":
     test_cache_hit_skips_second_external_call()
     test_failed_external_lookup_degrades_gracefully()
     test_loopback_treated_as_private()
+    test_derive_service_name_matches_known_orgs()
+    test_derive_service_name_returns_none_for_unknown_org()
     print("\nAll ip_lookup tests passed.")
